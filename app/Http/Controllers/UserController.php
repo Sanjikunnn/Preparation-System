@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\User;
+use Illuminate\Support\Facades\Auth; // tambahkan kalau belum
 
 class UserController extends Controller
 {
@@ -40,11 +41,13 @@ class UserController extends Controller
     }
 
     public function edit($nik) {
+        $this->authorizeSupervisor(); // batasi hanya untuk supervisor
         $user = User::findOrFail($nik);
         return view('users.edit', compact('user'));
     }
 
     public function update(Request $request, $nik) {
+        $this->authorizeSupervisor(); // batasi hanya untuk supervisor
         $user = User::findOrFail($nik);
 
         $request->validate([
@@ -67,10 +70,17 @@ class UserController extends Controller
     }
 
     public function destroy($nik) {
+        $this->authorizeSupervisor(); // batasi hanya untuk supervisor
         $user = User::findOrFail($nik);
         $user->delete();
 
         return redirect()->route('users.index')->with('success', 'User berhasil dihapus');
     }
 
+    private function authorizeSupervisor()
+    {
+        if (Auth::user()->role !== 'supervisor') {
+            abort(403, 'Akses hanya untuk Supervisor.');
+        }
+    }
 }

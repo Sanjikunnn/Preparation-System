@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use DNS1D;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth; // tambahkan kalau belum
 
 
 class DistributeController extends Controller
@@ -138,27 +139,6 @@ class DistributeController extends Controller
         return redirect()->route('distribute.index')->with('success', 'Distribusi berhasil disimpan.');
     }
 
-    public function destroy($id)
-    {
-        $distribute = Distribute::findOrFail($id);
-
-        // Kembalikan status distribute pada HasilUpper
-        $hasil = $distribute->hasilUpper;
-        if ($hasil) {
-            $hasil->distribute = false;
-            $hasil->save();
-        }
-
-        // Hapus file barcode (opsional)
-        if ($distribute->barcode_image && file_exists(public_path($distribute->barcode_image))) {
-            unlink(public_path($distribute->barcode_image));
-        }
-
-        // Hapus record dari tabel distribute
-        $distribute->delete();
-
-        return redirect()->route('distribute.index')->with('success', 'Distribusi berhasil dihapus.');
-    }
 
 public function export(Request $request)
 {
@@ -267,8 +247,36 @@ public function export(Request $request)
 
     return response($content, 200, $headers);
 }
+private function authorizeSupervisor()
+{
+    if (Auth::user()->role !== 'supervisor') {
+        abort(403, 'Akses hanya untuk Supervisor.');
+    }
+}
 
 
+public function destroy($id)
+{
+    $this->authorizeSupervisor(); // batasi hanya untuk supervisor
 
+    $distribute = Distribute::findOrFail($id);
+
+    // Kembalikan status distribute pada HasilUpper
+    $hasil = $distribute->hasilUpper;
+    if ($hasil) {
+        $hasil->distribute = false;
+        $hasil->save();
+    }
+
+    // Hapus file barcode (jika ada)
+    if ($distribute->barcode_image && file_exists(public_path($distribute->barcode_image))) {
+        unlink(public_path($distribute->barcode_image));
+    }
+
+    // Hapus record distribute
+    $distribute->delete();
+
+    return redirect()->route('distribute.index')->with('success', 'Distribusi berhasil dihapus.');
+}
 
 }
